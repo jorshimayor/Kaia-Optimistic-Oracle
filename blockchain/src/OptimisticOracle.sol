@@ -1,59 +1,56 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.0;
 
 contract OptimisticOracle {
-    struct Data {
-        string data;
-        uint256 timestamp;
-        bool finalized;
+    struct Request {
+        uint256 id;
+        string task;
+        address owner;
+        string status;
+        uint256 deadline;
+        bool resolved;
     }
 
-    mapping(bytes32 => Data) public oracleData;
-    mapping(bytes32 => uint256) public challenges;
-    uint256 public challengePeriod = 1 days;
+    uint256 public requestCounter;
+    mapping(uint256 => Request) public requests;
 
-    event DataProposed(bytes32 indexed dataId, string data, uint256 timestamp);
-    event DataChallenged(bytes32 indexed dataId, uint256 challengeTimestamp);
-    event DataFinalized(bytes32 indexed dataId);
+    event RequestCreated(uint256 id, string task, address owner, string status, uint256 deadline);
+    event RequestUpdated(uint256 id, string status);
 
-    // Submit data to the oracle
-    function proposeData(bytes32 dataId, string calldata data) external {
-        require(oracleData[dataId].timestamp == 0, "Data already proposed");
-
-        oracleData[dataId] = Data({
-            data: data,
-            timestamp: block.timestamp,
-            finalized: false
+    function createRequest(
+        string memory task,
+        string memory status,
+        uint256 deadline
+    ) external {
+        requestCounter++;
+        requests[requestCounter] = Request({
+            id: requestCounter,
+            task: task,
+            owner: msg.sender,
+            status: status,
+            deadline: deadline,
+            resolved: false
         });
 
-        emit DataProposed(dataId, data, block.timestamp);
+        emit RequestCreated(requestCounter, task, msg.sender, status, deadline);
     }
 
-    // Challenge the proposed data within the challenge period
-    function challengeData(bytes32 dataId) external {
-        require(oracleData[dataId].timestamp != 0, "No data to challenge");
-        require(oracleData[dataId].finalized == false, "Data already finalized");
-        require(block.timestamp - oracleData[dataId].timestamp < challengePeriod, "Challenge period expired");
+    function updateRequest(
+        uint256 id,
+        string memory status
+    ) external {
+        Request storage request = requests[id];
+        require(msg.sender == request.owner, "Only owner can update");
+        require(!request.resolved, "Request already resolved");
 
-        challenges[dataId] = block.timestamp;
-        emit DataChallenged(dataId, block.timestamp);
+        request.status = status;
+
+        emit RequestUpdated(id, status);
     }
 
-    // Finalize the data if no challenge occurs within the challenge period
-    function finalizeData(bytes32 dataId) external {
-        require(oracleData[dataId].timestamp != 0, "No data to finalize");
-        require(oracleData[dataId].finalized == false, "Data already finalized");
-
-        if (block.timestamp - oracleData[dataId].timestamp >= challengePeriod) {
-            oracleData[dataId].finalized = true;
-            emit DataFinalized(dataId);
-        } else {
-            revert("Challenge period still active");
-        }
-    }
-
-    // Retrieve data
-    function getData(bytes32 dataId) external view returns (string memory, bool) {
-        return (oracleData[dataId].data, oracleData[dataId].finalized);
+    function markResolved(uint256 id) external {
+        Request storage request = requests[id];
+        require(msg.sender == request.owner, "Only owner can resolve");
+        request.resolved = true;
     }
 }

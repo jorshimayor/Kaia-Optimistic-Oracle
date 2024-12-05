@@ -1,101 +1,112 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useEffect, useState } from "react";
+import { ethers } from "ethers";
+import { getEthersProvider } from "../lib/ethersProvider";
+
+const CONTRACT_ADDRESS = "YOUR_DEPLOYED_CONTRACT_ADDRESS";
+const CONTRACT_ABI = [
+  // Replace with the ABI from your deployed Optimistic Oracle
+];
+
+interface Request {
+  id: number;
+  task: string;
+  owner: string;
+  status: string;
+  deadline: number;
+  resolved: boolean;
+}
+
+const Home = () => {
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [contract, setContract] = useState<ethers.Contract | null>(null);
+
+  useEffect(() => {
+    const setupContract = async () => {
+      const provider = getEthersProvider();
+      const signer = provider.getSigner();
+      const oracleContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+      setContract(oracleContract);
+    };
+
+    setupContract();
+  }, []);
+
+  const fetchRequests = async () => {
+    if (!contract) return;
+    const requestCount = await contract.requestCounter();
+    const fetchedRequests: Request[] = [];
+
+    for (let i = 1; i <= requestCount.toNumber(); i++) {
+      const req = await contract.requests(i);
+      fetchedRequests.push({
+        id: req.id.toNumber(),
+        task: req.task,
+        owner: req.owner,
+        status: req.status,
+        deadline: req.deadline.toNumber(),
+        resolved: req.resolved,
+      });
+    }
+
+    setRequests(fetchedRequests);
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="flex flex-wrap -mx-3 mb-5">
+      <div className="w-full max-w-full px-3 mb-6 mx-auto">
+        <div className="relative flex-[1_auto] flex flex-col break-words min-w-0 bg-clip-border rounded-[.95rem] bg-white m-5">
+          <div className="relative flex flex-col min-w-0 break-words border border-dashed bg-clip-border rounded-2xl border-stone-200 bg-light/30">
+            <div className="px-9 pt-5 flex justify-between items-stretch flex-wrap min-h-[70px] pb-0 bg-transparent">
+              <h3 className="flex flex-col items-start justify-center m-2 ml-0 font-medium text-xl/tight text-dark">
+                <span className="mr-3 font-semibold text-dark">Optimistic Oracle</span>
+                <span className="mt-1 font-medium text-secondary-dark text-lg/normal">
+                  List of tasks
+                </span>
+              </h3>
+              <div className="relative flex flex-wrap items-center my-2">
+                <button
+                  onClick={fetchRequests}
+                  className="inline-block text-[.925rem] font-medium leading-normal text-center align-middle cursor-pointer rounded-2xl transition-colors duration-150 ease-in-out text-light-inverse bg-light-dark border-light shadow-none border-0 py-2 px-5 hover:bg-secondary active:bg-light focus:bg-light"
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
+            <div className="flex-auto block py-8 pt-6 px-9">
+              <div className="overflow-x-auto">
+                <table className="w-full my-0 align-middle text-dark border-neutral-200">
+                  <thead className="align-bottom">
+                    <tr className="font-semibold text-[0.95rem] text-secondary-dark">
+                      <th className="pb-3 text-start min-w-[175px]">TASK</th>
+                      <th className="pb-3 text-end min-w-[100px]">OWNER</th>
+                      <th className="pb-3 text-end min-w-[100px]">PROGRESS</th>
+                      <th className="pb-3 pr-12 text-end min-w-[175px]">STATUS</th>
+                      <th className="pb-3 pr-12 text-end min-w-[100px]">DEADLINE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {requests.map((request) => (
+                      <tr key={request.id} className="border-b border-dashed last:border-b-0">
+                        <td className="p-3 pl-0">{request.task}</td>
+                        <td className="p-3 pr-0 text-end">{request.owner}</td>
+                        <td className="p-3 pr-0 text-end">{request.progress}</td>
+                        <td className="p-3 pr-12 text-end">{request.status}</td>
+                        <td className="p-3 pr-12 text-end">
+                          {new Date(request.deadline * 1000).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
-}
+};
+
+export default Home;

@@ -9,7 +9,14 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "ethers": "^6.13.4",
+    "@coinbase/wallet-sdk": "^4.2.3",
+    "@kaiachain/contracts": "^1.0.1",
+    "@kaiachain/ethers-ext": "^1.1.0",
+    "@klaytn/kaikas-web3-provider": "^1.0.3",
+    "@klaytn/klip-web3-provider": "^1.0.2",
+    "@klaytn/web3modal": "^1.1.1",
+    "dotenv": "^16.4.6",
+    "ethers": "^5.7.2",
     "next": "15.0.3",
     "react": "19.0.0-rc-66855b96-20241106",
     "react-dom": "19.0.0-rc-66855b96-20241106"
